@@ -1,0 +1,28 @@
+target:
+  name: record_parser
+sources:
+  base: .patchguard/base/src
+  patched: src
+build:
+  command: ["cc", "{flags}", "{sources}", "-o", "{output}"]
+  sources: ["{source_dir}/record_parser.c"]
+  flags:
+    release: ["-O2", "-Wall", "-Wextra", "-Wpedantic", "-fPIE", "-pie", "-fstack-protector-strong", "-Wl,-z,relro,-z,now"]
+    checked: ["-O0", "-g", "-Wall", "-Wextra", "-Wpedantic", "-Wconversion", "-Wshadow", "-fsanitize=undefined", "-fno-omit-frame-pointer"]
+  output: record_parser
+run:
+  method: stdin
+  timeout_seconds: 3
+  max_input_bytes: 4097
+  output_limit_bytes: 8192
+  env:
+    UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=0
+  require_memory_finding: true
+corpus:
+  path: tests/fixtures/record_parser/cases.yaml
+regression:
+  dir: artifacts/regression/record_parser
+  reviewed: tests/regression/reviewed/record_parser
+oracle:
+  command: ["python3", "tests/fixtures/record_parser/reference_oracle.py"]
+  timeout_seconds: 2

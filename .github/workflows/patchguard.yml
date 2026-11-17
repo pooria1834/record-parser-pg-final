@@ -1,0 +1,57 @@
+name: PatchGuard
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  patchguard:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.user.login != 'github-actions[bot]' || !startsWith(github.head_ref, 'patchguard/regressions-') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout candidate without credentials
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Build exact baseline snapshot from PR base
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          rm -rf .patchguard/base
+          mkdir -p .patchguard/base
+          git archive "$BASE_SHA" src | tar -x -C .patchguard/base
+          test -f .patchguard/base/src/record_parser.c
+          test -f src/record_parser.c
+          echo "PATCHGUARD_BASE_REVISION=$BASE_SHA" >> "$GITHUB_ENV"
+
+      - name: Run PatchGuard
+        id: patchguard
+        uses: pooria1834/PatchGuard@ce52a5cb6da7166563191e40c533032878643e28
+        with:
+          config: .patchguard/config.yaml
+          report-dir: artifacts/patchguard
+          auto-regression-pr: 'false'
+
+      - name: Upload evidence even for a failing patch
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: patchguard-pr-evidence
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            artifacts/patchguard/summary.md
+            artifacts/patchguard/verdict.json
+            artifacts/patchguard/report.json
+            artifacts/patchguard/evidence-index.md
+            artifacts/patchguard/evidence-index.json
+            artifacts/patchguard/regression-candidates.md
+            artifacts/patchguard/technical-evidence.zip
