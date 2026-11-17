@@ -42,7 +42,7 @@ static int parse_record(const unsigned char *input, size_t length) {
     if (value_length == 0U || !is_ascii_alnum(value, value_length)) return 2;
 
     /* The only difference among variants is the documented length policy below. */
-    if ((0)) return 2;
+    if ((value_length >= 15U)) return 2;
 
     /* The rule above must protect the first byte past the logical field.
        The enclosing object keeps the lab probe inside allocated storage. */
